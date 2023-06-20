@@ -9,14 +9,9 @@ import pandas as pd
 import numpy as np
 from pandasai import PandasAI
 from pandasai.llm.openai import OpenAI
-from matplotlib import pyplot as plt
-import matplotlib
+
 import json
 
-
-
-
-matplotlib.use('TkAgg')
 
 
 
@@ -447,7 +442,7 @@ if response.status_code == 200:
 
 
         OPENAI_KEY = "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"
-        matplotlib.use('TkAgg')
+
         llm = OpenAI(OPENAI_KEY)
         # pandas_ai = PandasAI(llm, verbose=True, conversational=False)
         pandas_ai = PandasAI(llm)
