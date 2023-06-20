@@ -1,5 +1,5 @@
 numpy==1.21.6
-pandas==1.5.3
+pandas==1.3.5
 pandasai==0.6.2
 plotly==5.15.0
 Requests==2.31.0
