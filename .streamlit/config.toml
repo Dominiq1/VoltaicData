@@ -1,0 +1,9 @@
+[theme]
+primaryColor = "#343a40"  # Dark gray color
+backgroundColor = "#f8f9fa"  # Light gray color
+secondaryColor = "#6c757d"  # Steel gray color
+textColor = "#212529"  # Black color
+
+
+
+toolbarMode = "auto"
