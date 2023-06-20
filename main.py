@@ -7,8 +7,6 @@ import plotly.graph_objects as go
 import requests
 import pandas as pd
 import numpy as np
-from pandasai import PandasAI
-from pandasai.llm.openai import OpenAI
 
 import json
 
@@ -438,31 +436,50 @@ if response.status_code == 200:
         # =====================-^^^===========================-TESTING-===========================-^^^===========================
 
 
-        # AI stuff
 
 
-        OPENAI_KEY = "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"
-
-        llm = OpenAI(OPENAI_KEY)
-        # pandas_ai = PandasAI(llm, verbose=True, conversational=False)
-        pandas_ai = PandasAI(llm)
-        # response = pandas_ai.run(df, "What is the average project duration for each stage by installer?")
-        # print(response)
 
 
-        prompt = st.text_area('What do you want to know about voltaic? ')
 
 
-        if st.button('Generate'):
-            if prompt:
-                with st.spinner("Analyzing Voltaic...."):
-                    res = pandas_ai.run(combined_df, prompt=prompt)
-                print(res)
-                st.write(res)
+#AI Stuff
 
 
-            else:
-                st.warning("Enter a prompt.")
+
+        # # AI stuff
+        #
+        #
+        # OPENAI_KEY = "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"
+        #
+        # llm = OpenAI(OPENAI_KEY)
+        # # pandas_ai = PandasAI(llm, verbose=True, conversational=False)
+        # pandas_ai = PandasAI(llm)
+        # # response = pandas_ai.run(df, "What is the average project duration for each stage by installer?")
+        # # print(response)
+        #
+        #
+        # prompt = st.text_area('What do you want to know about voltaic? ')
+        #
+        #
+        # if st.button('Generate'):
+        #     if prompt:
+        #         with st.spinner("Analyzing Voltaic...."):
+        #             res = pandas_ai.run(combined_df, prompt=prompt)
+        #         print(res)
+        #         st.write(res)
+        #
+        #
+        #     else:
+        #         st.warning("Enter a prompt.")
+        #
+
+
+
+
+
+
+
+
 
 
     except json.JSONDecodeError:
@@ -472,6 +489,19 @@ if response.status_code == 200:
 
 else:
     st.write(f"Error: {response.status_code} - {response.text}")
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #=============================================
 
