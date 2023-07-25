@@ -605,11 +605,11 @@ with stage5_colum:
     st.markdown("##### FLA")
     st.subheader(fla_avg_completed)
 with stage6_colum:
-    st.markdown("##### Permit")
-    st.subheader(permit_avg_completed)
-with stage7_colum:
     st.markdown("##### Plans")
     st.subheader(plans_avg_completed)
+with stage7_colum:
+    st.markdown("##### Permit")
+    st.subheader(permit_avg_completed)
 with stage8_colum:
     st.markdown("##### Install")
     st.subheader(install_avg_completed)
