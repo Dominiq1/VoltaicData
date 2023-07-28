@@ -12,6 +12,32 @@ import json
 
 
 
+# Object map of objects with progress numbers and titles
+progress_data = {
+    "Voltaic Check 1": 2,
+    "Welcome Call 3": 3,
+    "Site Survey 2": 7,
+    "NTP Date 4": 5,
+    "QC Check 5": 6,
+     "FLA 5": 4,
+    "Solar Plans 7": 8,
+    "Solar Permit 8": 10,
+    "Sola Install Inspection 9": 15,
+    "Final Inspection 10": 5,
+    "PTO 11": 2,
+}
+
+# Function to display progress bar and numeric value for each item in the progress_data object
+def display_progress(progress_data):
+    for title, value in progress_data.items():
+        # Create a container to group the progress bar and numeric value
+        container = st.container()
+
+        # Display the progress ring
+        progress_bar = container.progress(value)
+
+        # Display the numeric value alongside the progress ring
+        container.text(f"{title}: {value} Days")
 
 
 class Project:
@@ -128,27 +154,17 @@ class Project:
         return self.Completed
 
 
-
-
-
-
 # Set the base URL for the QuickBase API
 base_url = "https://api.quickbase.com/v1"
-
 
 # Setting QuickBase realm and application tokens
 realm = "voltaic.quickbase.com"
 app_token = "b7738j_qjt3_0_dkaew43bvzcxutbu9q4e6crw3ei3"
 
-
 # Setting the API endpoint for the desired QuickBase table
 table_id = "your_table_id"
 
-
-
-
 api_endpoint = f"/reports/520/run?tableId=br5cqr4r3"
-
 
 # Setting the headers with the required authentication and content type
 headers = {
@@ -157,15 +173,6 @@ headers = {
 "Content-Type": "application/json"
 }
 
-
-# Setting the data to be sent in the request
-# data = {
-# "fields": {
-# "Field1": "Value1",
-# "Field2": "Value2",
-# "Field3": "Value3"
-# }
-# }
 
 
 # Sending a POST request to create a new record in the QuickBase table
@@ -202,14 +209,6 @@ if response.status_code == 200:
             PTODate = record.get("1670").get("value")
             instaler = record.get("634").get("value")
             CompletedDate = record.get("387").get("value")
-            #
-            # print(saleDate)
-            # print(welcomeDate)
-
-
-
-
-            # Create project model and add it to the list
 
 
             project_model = Project(saleDate)
@@ -252,6 +251,11 @@ if response.status_code == 200:
 
         }
         df = pd.DataFrame(data)
+        st.title("Active Stage Durations")
+        display_progress(progress_data)
+
+        st.write("First DF")
+        st.dataframe(df)
 
 
         # Convert date columns to datetime format
@@ -313,19 +317,13 @@ if response.status_code == 200:
         df_5 = df[df['installer'] == 'Titanium Solar']
         df_6 = df[df['installer'] == 'Energy Service Partners']
 
-
-
         installers_df = [df_1, df_2, df_5]
-
-
-
 
         # =====================-===========================-TESTING-===========================-===========================
         original_addresses = []
         original_homeowners = []
         original_installers = []
         original_saleDates = []
-
         original_welcomeDates = []
         original_siteSurveydates = []
         original_ntpdates = []
@@ -345,13 +343,6 @@ if response.status_code == 200:
 
 
 
-
-
-
-
-
-
-
     #Loop through installer to get global stats by installers
         for installer in installers_df:
 
@@ -361,7 +352,6 @@ if response.status_code == 200:
             original_homeowners.append(df['homeownerName'].copy())
             original_installers.append(df['installer'].copy())
             original_saleDates.append(df['SaleDate1'].copy())
-
             original_welcomeDates.append(df['WelcomeCallDate2'].copy())
             original_siteSurveydates.append(df['siteSurveyDate3'].copy())
             original_ntpdates.append(df['noticeToPermitDate4'].copy())
@@ -372,8 +362,6 @@ if response.status_code == 200:
             original_solarInstallDates.append(df['SolarInstallCompleteDate8'].copy())
             original_FinalInspectionDates.append(df['FinalInspectionDate9'].copy())
             original_PTODates.append(df['PermissionToOperateApprovedDate10'].copy())
-
-
             # Removing "installer", "homeownerName", "address" columns
             duration_df = df[duration_cols]
             # st.write("Duration Dataframe")
@@ -398,7 +386,6 @@ if response.status_code == 200:
                 duration_df['address'] = original_addresses[-1]
                 duration_df['homeownerName'] = original_homeowners[-1]
                 duration_df['SaleDate'] = original_saleDates[-1]
-
                 duration_df['WelcomeCallDate2'] = original_welcomeDates[-1]
                 duration_df['siteSurveyDate3'] = original_siteSurveydates[-1]
                 duration_df['noticeToPermitDate4'] = original_SolarPermitDates[-1]
@@ -421,8 +408,7 @@ if response.status_code == 200:
             finally:
                 print("Completed")
 
-
-            # st.dataframe(duration_df)
+                st.dataframe(duration_df)
 
 
         # Display the combined DataFrame
@@ -430,17 +416,12 @@ if response.status_code == 200:
 
         combined_df['projectDuration'] = combined_df[duration_cols].sum(axis=1)
 
-      #  st.write("Combined DataFrame:")
-       # st.dataframe(combined_df)
+        # st.write("Duration DataFrame:")
+        # st.dataframe(duration_cols)
+        # st.write("Combined DataFrame:")
+        # st.dataframe(combined_df)
 
         # =====================-^^^===========================-TESTING-===========================-^^^===========================
-
-
-
-
-
-
-
 
 #AI Stuff
 
@@ -474,14 +455,6 @@ if response.status_code == 200:
         #
 
 
-
-
-
-
-
-
-
-
     except json.JSONDecodeError:
         print("Unable to parse response as JSON.")
     # st.write(response.text)
@@ -490,68 +463,7 @@ if response.status_code == 200:
 else:
     st.write(f"Error: {response.status_code} - {response.text}")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 #=============================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 #=============================================================================
@@ -696,29 +608,6 @@ st.dataframe(filtered_df)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ========================  ----MAIN PAGE ------ ==========================
 
 # Extract the selected date range
@@ -767,11 +656,6 @@ st.plotly_chart(fig_duration_by_installer)
 
 
 
-
-
-
-
-
 # Calculate the average duration for each stage and installer category
 stage_columns = ['Welcome', 'SS', 'NTP', 'QCCheck', 'FLA', 'SolarPlans', 'SolarPermit', 'SolarInstall', 'FinalInspection', 'PTO']
 average_duration = filtered_df.groupby('installer')[stage_columns].mean().reset_index()
@@ -798,45 +682,6 @@ if len(target_durations) == len(stage_columns):
 
 # Display the chart
 st.plotly_chart(fig)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -904,11 +749,6 @@ with stage10_colum:
 with stage11_colum:
     st.markdown("##### Total Avg")
     st.subheader(global_avg_completed)
-
-
-
-
-
 
 # ===================== WATERFALL GRAPH ===========================
 
