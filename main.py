@@ -2,12 +2,13 @@
 import streamlit as st
 import plotly.express as px
 import datetime
+from datetime import datetime
 import plotly.subplots as sp
 import plotly.graph_objects as go
 import requests
 import pandas as pd
 import numpy as np
-
+import matplotlib.pyplot as plt
 import json
 
 
@@ -30,21 +31,64 @@ progress_data = {
 
 # Helper function to convert date string to datetime
 
+def get_filter_mask(combined_df):
+    # Define all date fields with labels (as before)
 
+    # Find the absolute min and max across all fields
+    abs_min_date = min(combined_df[field].dropna().min() for field in date_fields).date()
+    abs_max_date = max(combined_df[field].dropna().max() for field in date_fields).date()
+
+    # For the purpose of hiding, you can set a default range or any range you want.
+    selected_date = [abs_min_date, abs_max_date]
+    selected_dates_datetime = [pd.to_datetime(date) for date in selected_date]
+
+    # Set all fields as selected by default
+    selected_fields = list(date_fields.keys())
+
+    # Create an initial boolean mask with all False values
+    filter_mask = pd.Series([False] * len(combined_df), index=combined_df.index)
+
+    # Set a default number of days before and after. (You can change this as per your requirement)
+    num_days = 0
+
+    # Apply filters based on selected date range and fields
+    for field in selected_fields:
+        start_date = selected_dates_datetime[0] - pd.Timedelta(days=num_days)
+        end_date = selected_dates_datetime[1] + pd.Timedelta(days=num_days)
+        current_mask = combined_df[field].dropna().isna() | ((combined_df[field] >= start_date) & (combined_df[field] <= end_date))
+        filter_mask = filter_mask | current_mask
+
+    return filter_mask
 
 # Function to display progress bar and numeric value for each item in the progress_data object
-def display_progress(progress_data):
+def display_progress(progress_data): 
     # Custom titles for each entry
     titles = ['VC', 'Welcome ', 'Site Survey ', 'NTP ', 'QC check ', 'FLA ', 'Solar Plans ', 'Solar Permit ', 'Solar Install ', 'Final Inspection ', 'PTO',]
-
+    max_days = 100
     # Zip the custom titles with the progress_data dictionary items
     zipped_data = zip(titles, progress_data.items())
 
     for custom_title, (title, value) in zipped_data:
+       # Convert string to integer, if it's not already an integer or float
+        if isinstance(value, str):
+            try:
+                value = int(float(value))
+            except ValueError:
+                      value = 0  # if the conversion fails, set value to 0
+        
+               
+           # Replace NaN with 0
+        if value != value:  # This is a common idiom to check for NaN since NaN != NaN is True
+            value = 0
+
+        normalized_value = min(1.0, max(0.0, value / max_days))
+
+        
+        
         # Create a container to group the progress bar and numeric value
         container = st.container()
         # Display the progress ring
-        progress_bar = container.progress(value)
+        progress_bar = container.progress(normalized_value)
         # Display the numeric value alongside the progress ring using the custom title
         container.text(f"{custom_title} - {title}: {value} Days")
 
@@ -173,6 +217,17 @@ class Project:
 
     def get_installer(self):
         return self.installer
+    
+
+    def set_Status(self, value):
+        self.status = value
+
+
+    def get_Status(self):
+        return self.status
+    
+
+
     def set_qualityCheckDate(self, value):
         self.qualityCheckDate5 = value
 
@@ -306,6 +361,7 @@ if response.status_code == 200:
             instaler = record.get("634").get("value")
             CompletedDate = record.get("387").get("value")
             Stage = record.get("599").get("value")
+            Status = record.get("408").get("value")
 
 
             project_model = Project(saleDate)
@@ -325,6 +381,7 @@ if response.status_code == 200:
             project_model.set_Completed(CompletedDate)
             project_models.append(project_model)
             project_model.set_stage(Stage)
+            project_model.set_Status(Status)
 
 
 
@@ -333,6 +390,7 @@ if response.status_code == 200:
         data = {
         "homeownerName": [project.ownername for project in project_models],
         "installer": [project.installer for project in project_models],
+        "status": [project.status for project in project_models],
         "address": [project.address for project in project_models],
         "SaleDate1": [project.saleDate1 for project in project_models],
         "WelcomeCallDate2": [project.welcomeCallCompleteDate2 for project in project_models],
@@ -350,176 +408,11 @@ if response.status_code == 200:
 
         df = pd.DataFrame(data)
 
- # ================/===================================/===================================    Active Stage Durations
-        # Convert project models into a DataFrame
-        Dtdata = {
-        "HomeownerName": [project.ownername for project in project_models],
-        "Stage": [project.stage for project in project_models],
-        "Installer": [project.installer for project in project_models],
-        "Address": [project.address for project in project_models],
-        "date1": [pd.to_datetime(project.saleDate1) for project in project_models],
-        "date2": [pd.to_datetime(project.welcomeCallCompleteDate2) for project in project_models],
-        "date3": [pd.to_datetime(project.siteSurveyCompleteDate3) for project in project_models],
-        "date4": [pd.to_datetime(project.NTPDate4) for project in project_models],
-        "date5": [pd.to_datetime(project.qualityCheckDate5) for project in project_models],
-        "date6": [pd.to_datetime(project.FLAdate) for project in project_models],
-        "date7": [pd.to_datetime(project.solarPlans6) for project in project_models],
-        "date8": [pd.to_datetime(project.solarPermit) for project in project_models],
-        "date9": [pd.to_datetime(project.solarInstall7) for project in project_models],
-        "date10": [pd.to_datetime(project.FinalInspection) for project in project_models],
-        "date11": [pd.to_datetime(project.PTO) for project in project_models],
-        }
-
-        st.write("Step 1 - ===================================")
-
-        # Convert the data dictionary into a DataFrame
-
-        Dtdf = pd.DataFrame(Dtdata)
-
-        # Create a new DataFrame to show the datatype of each column
-        dtypes_df = pd.DataFrame(Dtdf.dtypes, columns=["DataType"])
-
-        # Print the DataFrame showing the datatype of each column
-        st.dataframe(dtypes_df)
-
-        st.write("Step 2 - ===================================")
-        st.dataframe(Dtdf)
-
-        st.write("Step 3 - ===================================")
-        # Apply the function to each row and assign the result to a new column
-        Dtdf['active_stage_duration'] = Dtdf.apply(calculate_stage_durations, axis=1)
-
-        # Now Dtdf has a new column named 'active_stage_duration' with the calculated values
-        st.dataframe(Dtdf)
-
-        # Create new dataframes for each stage. Each record might be in multiple stages, so we need to create a new for each stage type:
-
-        # Create a new DataFrame for each stage and only extract the columns: 'HomeownerName', 'Stage', 'date1'
-
-
-# ================/===================================/===================================    Active Stage Durations
-
-#Sale date = > Date 1
-#Welcome Call date = > Date 2
-#Site Survey date = > Date 3
-#NTP date = > Date 4
-#Quality Check date = > Date 5
-#FLA date = > Date 6
-#Solar Plans date = > Date 7
-#Solar Permit date = > Date 8
-#Solar Install date = > Date 9
-#Final Inspection date = > Date 10
-#PTO date = > Date 11
-
-        stage1_df = Dtdf[Dtdf['Stage'] == 'New Sale']
-        #exclude all columns except for homeowner name, stage, and date1
-        stage1_df = stage1_df[['HomeownerName', 'Stage', 'date1']]
-        #rename date1 to stage_date
-        stage1_df = stage1_df.rename(columns={'date1': 'stage_date'})
-
-    
-
-        stage2_df = Dtdf[Dtdf['Stage'] == 'Welcome Call']
-        stage2_df = stage2_df[['HomeownerName', 'Stage', 'date1']]
-        stage2_df = stage2_df.rename(columns={'date1': 'stage_date'})
-
-
-        stage3_df = Dtdf[Dtdf['Stage'] == 'Site Survey']
-        stage3_df = stage3_df[['HomeownerName', 'Stage', 'date2']]
-        stage3_df = stage3_df.rename(columns={'date2': 'stage_date'})
-
-
-        stage4_df = Dtdf[Dtdf['Stage'] == 'NTP']
-        stage4_df = stage4_df[['HomeownerName', 'Stage', 'date3']]
-        stage4_df = stage4_df.rename(columns={'date3': 'stage_date'})
-
-
-        stage5_df = Dtdf[Dtdf['Stage'] == 'QC check']
-        stage5_df = stage5_df[['HomeownerName', 'Stage', 'date4']]
-        stage5_df = stage5_df.rename(columns={'date4': 'stage_date'})
-
-
-        stage6_df = Dtdf[Dtdf['Stage'] == 'FLA']
-        stage6_df = stage6_df[['HomeownerName', 'Stage', 'date5']]
-        stage6_df = stage6_df.rename(columns={'date5': 'stage_date'})
-
-
-        stage7_df = Dtdf[Dtdf['Stage'] == 'Plans']
-        stage7_df = stage7_df[['HomeownerName', 'Stage', 'date6']]
-        stage7_df = stage7_df.rename(columns={'date6': 'stage_date'})
-
-
-        stage8_df = Dtdf[Dtdf['Stage'] == 'Solar Permit']
-        stage8_df = stage8_df[['HomeownerName', 'Stage', 'date7']]
-        stage8_df = stage8_df.rename(columns={'date7': 'stage_date'})
-
-
-        stage9_df = Dtdf[Dtdf['Stage'] == 'Solar Install']
-        stage9_df = stage9_df[['HomeownerName', 'Stage', 'date8']]
-        stage9_df = stage9_df.rename(columns={'date8': 'stage_date'})
-
-
-        stage10_df = Dtdf[Dtdf['Stage'] == 'Final Inspection']
-        stage10_df = stage10_df[['HomeownerName', 'Stage', 'date9']]
-        stage10_df = stage10_df.rename(columns={'date9': 'stage_date'})
-
-
-        stage11_df = Dtdf[Dtdf['Stage'] == 'PTO']
-        stage11_df = stage11_df[['HomeownerName', 'Stage', 'date10']]
-        stage11_df = stage11_df.rename(columns={'date10': 'stage_date'})
-
-        
-        #Print all dataframes in streamlit 
-        st.dataframe(stage1_df)
-        st.dataframe(stage2_df)
-        st.dataframe(stage3_df)
-        st.dataframe(stage4_df)
-        st.dataframe(stage5_df)
-        st.dataframe(stage6_df)
-        st.dataframe(stage7_df)
-        st.dataframe(stage8_df)
-        st.dataframe(stage9_df)
-        st.dataframe(stage10_df)
-        st.dataframe(stage11_df)
 
 
 
-
-
-
-        #WORKING
-        #
-        # st.write("Step 4 -  ===================================")
-        #
-        # # Calculate the overall averages, considering NaN values as well
-        # overall_averages = [Dtdf['active_stage_duration' + str(i)].mean() for i in range(1, 11)]
-        # # Find the max and min across all averages for normalization
-        # max_avg = max(overall_averages, default=0)
-        # min_avg = min(overall_averages, default=0)
-        #
-        # progress_data = {}
-        # for i, avg in enumerate(overall_averages, start=1):
-        #     date_key = f'date{i}'
-        #
-        #     # Normalize and scale the value if max_avg is not equal to min_avg
-        #     if max_avg != min_avg:
-        #         normalized_avg = (avg - min_avg) / (max_avg - min_avg)
-        #         scaled_avg = int(normalized_avg * 100)
-        #     else:
-        #         scaled_avg = 0
-        #
-        #     progress_data[date_key] = scaled_avg
-        #     st.write(f"Overall average active stage duration for stage {i}: {scaled_avg}")
-        #
-        # st.write("Step 5 - ")
-        #
-        # Dtdf = pd.DataFrame(data)
-        # st.title("Active Stage Durations")
-        # display_progress(progress_data)
-
-
-        st.write("First DF")
-        st.dataframe(df)
+        st.write("Projects Data ")
+        #st.dataframe(df)
 
 
         # Convert date columns to datetime format
@@ -670,7 +563,7 @@ if response.status_code == 200:
             finally:
                 print("Completed")
 
-                st.dataframe(duration_df)
+               # st.dataframe(duration_df)
 
 
         # Display the combined DataFrame
@@ -701,13 +594,13 @@ else:
 #=============================================================================
 
 # Display "KPIs" and the dataframe "combined_df"
-st.write("KPIs")
-st.dataframe(combined_df)
+# st.write("KPIs")
+# st.dataframe(combined_df)
 
 # Display global average pipeline duration
 st.title(":bar_chart: Global Avg Pipeline Duration")
-st.write("SOLD between 01/06/23 - 06/20/23")
-st.markdown("##")
+# st.write("SOLD between 01/06/23 - 06/20/23")
+# st.markdown("##")
 
 # Calculate average duration for each stage
 welcome_avg_completed = int(combined_df["Welcome"].mean())
@@ -771,6 +664,13 @@ with stage11_colum:
 st.sidebar.header("Filter")
 
 
+
+
+# Use the function to get the filter mask and apply it to the dataframe
+
+
+
+
 # Define all date fields with labels
 date_fields = {
     'SaleDate': 'Sale Date',
@@ -797,30 +697,47 @@ selected_dates_datetime = [pd.to_datetime(date) for date in selected_date]
 # List to store selected fields
 selected_fields = []
 
-# Iterate over each date field and create checkboxes for filtering
-for field, label in date_fields.items():
-    if st.sidebar.checkbox(f"Completed {label} "):
-        selected_fields.append(field)
+# #Iterate over each date field and create checkboxes for filtering
+# for field, label in date_fields.items():
+#     if st.sidebar.checkbox(f"Completed {label} ", value=True):
+#         selected_fields.append(field)
 
-# Create an initial boolean mask with all False values
-filter_mask = pd.Series([False] * len(combined_df), index=combined_df.index)
+# # Create an initial boolean mask with all False values
+# filter_mask = pd.Series([False] * len(combined_df), index=combined_df.index)
 
-# Single slider for number of days before and after
-num_days = st.sidebar.slider("Select the number of days before/after:", 0, 365, 0)
+# # Single slider for number of days before and after
+# num_days = st.sidebar.slider("Select the number of days before/after:", 0, 365, 0)
 
-# Apply filters based on selected date range and fields
-for field in selected_fields:
-    start_date = selected_dates_datetime[0] - pd.Timedelta(days=num_days)
-    end_date = selected_dates_datetime[1] + pd.Timedelta(days=num_days)
-    current_mask = combined_df[field].dropna().isna() | ((combined_df[field] >= start_date) & (combined_df[field] <= end_date))
-    filter_mask = filter_mask | current_mask
+# # Apply filters based on selected date range and fields
+# for field in selected_fields:
+#     start_date = selected_dates_datetime[0] - pd.Timedelta(days=num_days)
+#     end_date = selected_dates_datetime[1] + pd.Timedelta(days=num_days)
+#     current_mask = combined_df[field].dropna().isna() | ((combined_df[field] >= start_date) & (combined_df[field] <= end_date))
+#     filter_mask = filter_mask | current_mask
 
-# Apply the combined filter mask to the original DataFrame
-filtered_df = combined_df[filter_mask]
+# # Apply the combined filter mask to the original DataFrame
+# filtered_df = combined_df[filter_mask]
 
-# Rest of the code...
+# # Rest of the code...
 
-# Continue with the rest of your code...
+# # Continue with the rest of your code...
+
+# # Multiselect for installer
+# installerFilter = st.sidebar.multiselect(
+#     "Select the installer:",
+#     options=filtered_df['installer'].unique().tolist(),
+#     default=filtered_df['installer'].unique().tolist()
+# )
+
+# installerquery = filtered_df.query("installer == @installer")
+
+# filtered_df = filtered_df.query("installer == @installerFilter")
+
+
+
+filter_mask = get_filter_mask(combined_df)
+filtered_df = combined_df[filter_mask] 
+
 
 # Multiselect for installer
 installerFilter = st.sidebar.multiselect(
@@ -829,12 +746,328 @@ installerFilter = st.sidebar.multiselect(
     default=filtered_df['installer'].unique().tolist()
 )
 
-installerquery = filtered_df.query("installer == @installer")
 
-filtered_df = filtered_df.query("installer == @installerFilter")
 
-st.write("Filtered DF")
-st.dataframe(filtered_df)
+# st.write("Filtered DF")
+# st.dataframe(filtered_df)
+
+
+
+
+
+
+
+
+
+
+ # ================/===================================/===================================    Active Stage Durations
+        # Convert project models into a DataFrame
+Dtdata = {
+        "HomeownerName": [project.ownername for project in project_models],
+        "Stage": [project.stage for project in project_models],
+        "status": [project.status for project in project_models],
+        "Installer": [project.installer for project in project_models],
+        "Address": [project.address for project in project_models],
+        "date1": [pd.to_datetime(project.saleDate1) for project in project_models],
+        "date2": [pd.to_datetime(project.welcomeCallCompleteDate2) for project in project_models],
+        "date3": [pd.to_datetime(project.siteSurveyCompleteDate3) for project in project_models],
+        "date4": [pd.to_datetime(project.NTPDate4) for project in project_models],
+        "date5": [pd.to_datetime(project.qualityCheckDate5) for project in project_models],
+        "date6": [pd.to_datetime(project.solarPlans6) for project in project_models],
+        "date7": [pd.to_datetime(project.FLAdate) for project in project_models],
+        "date8": [pd.to_datetime(project.solarPermit) for project in project_models],
+        "date9": [pd.to_datetime(project.solarInstall7) for project in project_models],
+        "date10": [pd.to_datetime(project.FinalInspection) for project in project_models],
+        "date11": [pd.to_datetime(project.PTO) for project in project_models],
+        }
+
+
+
+        # Convert the data dictionary into a DataFrame
+
+Dtdf = pd.DataFrame(Dtdata)
+
+        # Create a new DataFrame to show the datatype of each column
+dtypes_df = pd.DataFrame(Dtdf.dtypes, columns=["DataType"])
+
+        # Print the DataFrame showing the datatype of each column
+#st.dataframe(dtypes_df)
+
+#st.write("Step 2 - ===================================")
+# st.dataframe(Dtdf)
+#st.write("Step 3 - ===================================")
+        # Apply the function to each row and assign the result to a new column
+Dtdf['active_stage_duration'] = Dtdf.apply(calculate_stage_durations, axis=1)
+
+        # Now Dtdf has a new column named 'active_stage_duration' with the calculated values
+# st.dataframe(Dtdf)
+
+        # Create new dataframes for each stage. Each record might be in multiple stages, so we need to create a new for each stage type:
+
+        # Create a new DataFrame for each stage and only extract the columns: 'HomeownerName', 'Stage', 'date1'
+
+
+# ================/===================================/===================================    Active Stage Durations
+
+#Sale date = > Date 1
+#Welcome Call date = > Date 2
+#Site Survey date = > Date 3
+#NTP date = > Date 4
+#Quality Check date = > Date 5
+#FLA date = > Date 6
+#Solar Plans date = > Date 7
+#Solar Permit date = > Date 8
+#Solar Install date = > Date 9
+#Final Inspection date = > Date 10
+#PTO date = > Date 11
+
+stage1_df = Dtdf[Dtdf['Stage'] == 'New Sale']
+        #exclude all columns except for homeowner name, stage, and date1
+stage1_df = stage1_df[['HomeownerName', 'Stage', 'date1']]
+        #rename date1 to stage_date
+stage1_df = stage1_df.rename(columns={'date1': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage1_df['prev_stage_date'] = pd.to_datetime(stage1_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage1_df['days_since'] = (today - stage1_df['prev_stage_date']).dt.days
+
+
+
+stage2_df = Dtdf[Dtdf['Stage'] == 'Welcome Call']
+stage2_df = stage2_df[['HomeownerName', 'Stage', 'date1']]
+stage2_df = stage2_df.rename(columns={'date1': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage2_df['prev_stage_date'] = pd.to_datetime(stage2_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage2_df['days_since'] = (today - stage2_df['prev_stage_date']).dt.days
+
+
+
+
+
+
+
+stage3_df = Dtdf[Dtdf['Stage'] == 'Site Survey']
+stage3_df = stage3_df[['HomeownerName', 'Stage', 'date2']]
+stage3_df = stage3_df.rename(columns={'date2': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage3_df['prev_stage_date'] = pd.to_datetime(stage3_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage3_df['days_since'] = (today - stage3_df['prev_stage_date']).dt.days
+
+
+
+stage4_df = Dtdf[Dtdf['Stage'] == 'NTP']
+stage4_df = stage4_df[['HomeownerName', 'Stage', 'date3']]
+stage4_df = stage4_df.rename(columns={'date3': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage4_df['prev_stage_date'] = pd.to_datetime(stage4_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage4_df['days_since'] = (today - stage4_df['prev_stage_date']).dt.days
+
+
+
+stage5_df = Dtdf[Dtdf['Stage'] == 'QC check']
+stage5_df = stage5_df[['HomeownerName', 'Stage', 'date4']]
+stage5_df = stage5_df.rename(columns={'date4': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage5_df['prev_stage_date'] = pd.to_datetime(stage5_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage5_df['days_since'] = (today - stage5_df['prev_stage_date']).dt.days
+
+
+
+
+stage6_df = Dtdf[Dtdf['Stage'] == 'Plans']
+stage6_df = stage6_df[['HomeownerName', 'Stage', 'date5']]
+stage6_df = stage6_df.rename(columns={'date5': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage6_df['prev_stage_date'] = pd.to_datetime(stage6_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage6_df['days_since'] = (today - stage6_df['prev_stage_date']).dt.days
+
+
+stage7_df = Dtdf[Dtdf['Stage'] == 'FLA']
+stage7_df = stage7_df[['HomeownerName', 'Stage', 'date6']]
+stage7_df = stage7_df.rename(columns={'date6': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage7_df['prev_stage_date'] = pd.to_datetime(stage7_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage7_df['days_since'] = (today - stage7_df['prev_stage_date']).dt.days
+
+
+
+
+
+stage8_df = Dtdf[Dtdf['Stage'] == 'Solar Permit']
+stage8_df = stage8_df[['HomeownerName', 'Stage', 'date7']]
+stage8_df = stage8_df.rename(columns={'date7': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage8_df['prev_stage_date'] = pd.to_datetime(stage8_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage8_df['days_since'] = (today - stage8_df['prev_stage_date']).dt.days
+
+
+
+stage9_df = Dtdf[Dtdf['Stage'] == 'Solar Install']
+stage9_df = stage9_df[['HomeownerName', 'Stage', 'date8']]
+stage9_df = stage9_df.rename(columns={'date8': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage9_df['prev_stage_date'] = pd.to_datetime(stage9_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage9_df['days_since'] = (today - stage9_df['prev_stage_date']).dt.days
+
+
+
+stage10_df = Dtdf[Dtdf['Stage'] == 'Final Inspection']
+stage10_df = stage10_df[['HomeownerName', 'Stage', 'date9']]
+stage10_df = stage10_df.rename(columns={'date9': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage10_df['prev_stage_date'] = pd.to_datetime(stage10_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage10_df['days_since'] = (today - stage10_df['prev_stage_date']).dt.days
+
+
+
+stage11_df = Dtdf[Dtdf['Stage'] == 'PTO']
+stage11_df = stage11_df[['HomeownerName', 'Stage', 'date10']]
+stage11_df = stage11_df.rename(columns={'date10': 'prev_stage_date'})
+        # Convert the 'prev_stage_date' column to datetime format
+stage11_df['prev_stage_date'] = pd.to_datetime(stage11_df['prev_stage_date'])
+        # Calculate the number of days since the 'prev_stage_date' to today
+today = datetime.today()
+stage11_df['days_since'] = (today - stage11_df['prev_stage_date']).dt.days
+
+
+
+        
+        #Print all dataframes in streamlit 
+# st.write("Sale Date")
+# st.dataframe(stage1_df)
+# st.write("Welcome Call")
+# st.dataframe(stage2_df)
+# st.write("Site Survey")
+# st.dataframe(stage3_df)
+# st.write("NTP")
+# st.dataframe(stage4_df)
+# st.write("QC Check")
+# st.dataframe(stage5_df) 
+# st.write("FLA")
+# st.dataframe(stage6_df)
+# st.write("Solar Plans")
+# st.dataframe(stage7_df)
+# st.write("Solar Permit")
+# st.dataframe(stage8_df)
+# st.write("Solar Install")
+# st.dataframe(stage9_df)
+# st.write("Final Inspection")
+# st.dataframe(stage10_df)
+# st.write("PTO")
+# st.dataframe(stage11_df)
+
+        #Create a new dataframe with the average days since by getting the mean of 'days_since' column
+
+stage1_avg = stage1_df['days_since'].mean()
+stage2_avg = stage2_df['days_since'].mean()
+stage3_avg = stage3_df['days_since'].mean()
+stage4_avg = stage4_df['days_since'].mean()
+stage5_avg = stage5_df['days_since'].mean()
+stage6_avg = stage6_df['days_since'].mean()
+stage7_avg = stage7_df['days_since'].mean()
+stage8_avg = stage8_df['days_since'].mean()
+stage9_avg = stage9_df['days_since'].mean()
+stage10_avg = stage10_df['days_since'].mean()
+stage11_avg = stage11_df['days_since'].mean()
+
+
+stage1_total = len(stage1_df)
+stage2_total = len(stage2_df)
+stage3_total = len(stage3_df)
+stage4_total = len(stage4_df)
+stage5_total = len(stage5_df)
+stage6_total = len(stage6_df)
+stage7_total = len(stage7_df)
+stage8_total = len(stage8_df)
+stage9_total = len(stage9_df)
+stage10_total = len(stage10_df)
+stage11_total = len(stage11_df)
+
+        #Print the average days since for each stage
+st.write("Average Days held activley each stage")
+st.write("Sale Date: ", stage1_avg  , "Total: ", stage1_total)
+st.write("Welcome Call: ", stage2_avg  , "Total: ", stage2_total)
+st.write("Site Survey: ", stage3_avg  , "Total: ", stage3_total)
+st.write("NTP: ", stage4_avg  , "Total: ", stage4_total)
+st.write("QC Check: ", stage5_avg  , "Total: ", stage5_total)
+st.write("Plans: ", stage6_avg  , "Total: ", stage6_total)
+st.write("FLA: ", stage7_avg  , "Total: ", stage7_total)
+st.write("Solar Permit: ", stage8_avg , "Total: ", stage8_total)
+st.write("Solar Install: ", stage9_avg , "Total: ", stage9_total)
+st.write("Final Inspection: ", stage10_avg , "Total: ", stage10_total)
+st.write("PTO: ", stage11_avg , "Total: ", stage11_total)
+
+
+        #Use matplot to create a bar graph of the average days since for each stage
+
+
+        # data to plot
+n_groups = 11
+means_frank = (stage1_avg, stage2_avg, stage3_avg, stage4_avg, stage5_avg, stage6_avg, stage7_avg, stage8_avg, stage9_avg, stage10_avg, stage11_avg)
+
+        # create plot
+fig, ax = plt.subplots()
+index = np.arange(n_groups)
+bar_width = 0.35
+opacity = 0.8
+
+rects1 = plt.bar(index, means_frank, bar_width,
+alpha=opacity,
+color='b',
+label='Avg Days Since')
+
+plt.xlabel('Stage')
+plt.ylabel('Days')
+plt.title('Average Days Since entering stage')
+
+plt.xticks(index + bar_width, ('Sale', 'Welcome', 'Site Survey', 'NTP', 'QC Check', 'FLA', 'Solar Plans', 'Solar Permit', 'Solar Install', 'Final Inspection', 'PTO'))
+plt.legend()
+
+plt.tight_layout()
+st.pyplot(fig)
+
+        # =====================-===========================-TESTING-===========================-===========================
+        
+
+        #Display Progress ring for each stage
+
+progress_data = {
+        "Sale": stage1_avg,
+        "Welcome": stage2_avg,
+        "Site Survey": stage3_avg,
+        "NTP": stage4_avg,
+        "QC Check": stage5_avg,
+        "FLA": stage6_avg,
+        "Solar Plans": stage7_avg,
+        "Solar Permit": stage8_avg,
+        "Solar Install": stage9_avg,
+        "Final Inspection": stage10_avg,
+        "PTO": stage11_avg,
+        }
+
+st.title("Active Stage Durations")
+display_progress(progress_data)
+    
+
 
 
 
